@@ -1,0 +1,886 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>人事部よろず相談AIチャットボット</title>
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", sans-serif;
+      background: linear-gradient(135deg, #f5f7ff, #eef2ff);
+      color: #333;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      padding: 16px;
+    }
+
+    .app {
+      width: 100%;
+      max-width: 780px;
+      height: 92vh;
+      background: #ffffff;
+      border-radius: 22px;
+      box-shadow: 0 18px 50px rgba(61, 77, 160, 0.14);
+      display: flex;
+      flex-direction: column;
+      overflow: hidden;
+      border: 1px solid #e7ebf8;
+    }
+
+    .header {
+      background: linear-gradient(135deg, #6d7cff, #8f6bff);
+      color: white;
+      padding: 12px 16px 10px;
+      flex-shrink: 0;
+    }
+
+    .header-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+      flex-wrap: wrap;
+    }
+
+    .title-wrap h1 {
+      margin: 0;
+      font-size: 18px;
+      line-height: 1.3;
+      letter-spacing: 0.02em;
+    }
+
+    .title-wrap p {
+      margin: 4px 0 0;
+      font-size: 12px;
+      opacity: 0.92;
+      line-height: 1.5;
+    }
+
+    .score-board {
+      min-width: 170px;
+      background: rgba(255, 255, 255, 0.12);
+      border: 1px solid rgba(255, 255, 255, 0.2);
+      border-radius: 14px;
+      padding: 8px 12px;
+      backdrop-filter: blur(8px);
+      position: relative;
+      overflow: visible;
+    }
+
+    .score-label {
+      font-size: 10px;
+      opacity: 0.9;
+      margin-bottom: 2px;
+      color: #e8edff;
+    }
+
+    .score-value {
+      font-size: 18px;
+      font-weight: bold;
+      line-height: 1.2;
+      letter-spacing: 0.02em;
+      color: #ffe58f;
+    }
+
+    .score-sub {
+      margin-top: 2px;
+      font-size: 10px;
+      opacity: 0.85;
+      color: #dbe3ff;
+      line-height: 1.4;
+    }
+
+    .point-pop {
+      position: absolute;
+      right: 10px;
+      top: 6px;
+      font-size: 12px;
+      font-weight: bold;
+      color: #fff6c2;
+      text-shadow: 0 2px 8px rgba(0,0,0,0.18);
+      opacity: 0;
+      pointer-events: none;
+      transform: translateY(8px) scale(0.95);
+    }
+
+    .point-pop.show {
+      animation: pointFloat 1.4s ease forwards;
+    }
+
+    .chat-area {
+      flex: 1;
+      overflow-y: auto;
+      padding: 16px;
+      background:
+        radial-gradient(circle at top right, rgba(143, 107, 255, 0.06), transparent 25%),
+        linear-gradient(180deg, #fbfcff 0%, #f6f8ff 100%);
+    }
+
+    .message-row {
+      display: flex;
+      margin-bottom: 14px;
+      animation: fadeInUp 0.25s ease;
+    }
+
+    .message-row.user {
+      justify-content: flex-end;
+    }
+
+    .message-row.bot {
+      justify-content: flex-start;
+    }
+
+    .message-row.system {
+      justify-content: flex-start;
+    }
+
+    .message-wrap {
+      max-width: 78%;
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .message-row.user .message-wrap {
+      align-items: flex-end;
+    }
+
+    .bubble {
+      display: inline-block;
+      width: fit-content;
+      max-width: 100%;
+      min-width: 72px;
+      padding: 12px 14px;
+      border-radius: 16px;
+      line-height: 1.7;
+      font-size: 14px;
+      white-space: pre-wrap;
+      word-break: normal;
+      overflow-wrap: break-word;
+      box-shadow: 0 8px 18px rgba(0, 0, 0, 0.06);
+    }
+
+    .user .bubble {
+      background: linear-gradient(135deg, #6d7cff, #5c6df5);
+      color: #fff;
+      border-bottom-right-radius: 6px;
+    }
+
+    .bot .bubble {
+      background: #fff;
+      color: #333;
+      border: 1px solid #e7eaf4;
+      border-bottom-left-radius: 6px;
+    }
+
+    .thinking-text {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: #7b839d;
+      padding: 2px 4px;
+      text-align: left;
+    }
+
+    .thinking-dots {
+      display: inline-flex;
+      gap: 4px;
+    }
+
+    .thinking-dots span {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: #8d97bd;
+      animation: blink 1.2s infinite;
+      opacity: 0.4;
+    }
+
+    .thinking-dots span:nth-child(2) {
+      animation-delay: 0.2s;
+    }
+
+    .thinking-dots span:nth-child(3) {
+      animation-delay: 0.4s;
+    }
+
+    .meta {
+      font-size: 10px;
+      color: #8a90a6;
+      margin-top: 5px;
+      padding: 0 4px;
+    }
+
+    .badge {
+      display: inline-block;
+      margin-top: 8px;
+      background: linear-gradient(135deg, #fff3cd, #ffe8a3);
+      color: #8a6500;
+      border: 1px solid #ffe08a;
+      border-radius: 999px;
+      padding: 5px 9px;
+      font-size: 11px;
+      font-weight: bold;
+      box-shadow: 0 4px 12px rgba(255, 193, 7, 0.18);
+    }
+
+    .input-area {
+      border-top: 1px solid #e8ebf5;
+      background: #fff;
+      padding: 12px;
+      flex-shrink: 0;
+    }
+
+    .input-box {
+      display: flex;
+      gap: 10px;
+      align-items: flex-end;
+    }
+
+    textarea {
+      flex: 1;
+      height: 50px;
+      min-height: 50px;
+      max-height: 50px;
+      resize: none;
+      overflow-y: hidden;
+      border: 1px solid #dbe1f0;
+      border-radius: 14px;
+      padding: 12px;
+      font-size: 14px;
+      font-family: inherit;
+      outline: none;
+      background: #fafbff;
+      line-height: 1.6;
+      white-space: nowrap;
+      word-break: normal;
+      overflow-x: auto;
+      overflow-wrap: normal;
+    }
+
+    textarea:focus {
+      border-color: #7d89ff;
+      box-shadow: 0 0 0 4px rgba(109, 124, 255, 0.12);
+      background: #fff;
+    }
+
+    button {
+      border: none;
+      border-radius: 14px;
+      padding: 12px 16px;
+      font-size: 13px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: 0.2s ease;
+      font-family: inherit;
+    }
+
+    .send-btn {
+      background: linear-gradient(135deg, #6d7cff, #5d6cf8);
+      color: white;
+      min-width: 84px;
+      box-shadow: 0 10px 22px rgba(109, 124, 255, 0.25);
+    }
+
+    .send-btn:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 12px 24px rgba(109, 124, 255, 0.32);
+    }
+
+    .send-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .sub-actions {
+      display: flex;
+      gap: 8px;
+      margin-top: 10px;
+      flex-wrap: wrap;
+    }
+
+    .sub-btn {
+      background: #f3f5ff;
+      color: #5160d8;
+      border: 1px solid #dde4ff;
+      padding: 10px 12px;
+      font-size: 12px;
+    }
+
+    .sub-btn:hover {
+      background: #eaf0ff;
+    }
+
+    @keyframes blink {
+      0%, 80%, 100% {
+        transform: scale(0.8);
+        opacity: 0.35;
+      }
+      40% {
+        transform: scale(1);
+        opacity: 1;
+      }
+    }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(8px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes pointFloat {
+      0% {
+        opacity: 0;
+        transform: translateY(10px) scale(0.92);
+      }
+      20% {
+        opacity: 1;
+        transform: translateY(0) scale(1);
+      }
+      75% {
+        opacity: 1;
+        transform: translateY(-14px) scale(1.02);
+      }
+      100% {
+        opacity: 0;
+        transform: translateY(-24px) scale(1.04);
+      }
+    }
+
+    @media (max-width: 640px) {
+      body {
+        padding: 10px;
+      }
+
+      .app {
+        height: 94vh;
+        border-radius: 16px;
+      }
+
+      .message-wrap {
+        max-width: 88%;
+      }
+
+      .title-wrap h1 {
+        font-size: 16px;
+      }
+
+      .title-wrap p {
+        font-size: 11px;
+      }
+
+      .score-board {
+        width: 100%;
+        min-width: 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="header">
+      <div class="header-top">
+        <div class="title-wrap">
+          <h1>人事部よろず相談AIチャットボット</h1>
+          <p>
+            人事っぽい悩みや相談を入れると、
+            それらしい角度から丁寧に考えて返してくれます。
+          </p>
+        </div>
+
+        <div class="score-board" id="scoreBoard">
+          <div class="score-label">やるやんポイント累計</div>
+          <div class="score-value"><span id="totalPoints">0</span> pt</div>
+          <div class="score-sub" id="scoreSub">本日のがんばりを静かに評価中</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="chat-area" id="chatArea"></div>
+
+    <div class="input-area">
+      <div class="input-box">
+        <textarea id="userInput" placeholder="相談内容を入力してください"></textarea>
+        <button class="send-btn" id="sendBtn">送信</button>
+      </div>
+
+      <div class="sub-actions">
+        <button class="sub-btn" onclick="insertSample('会議で毎回いい感じに話が終わるのに、結局誰も動きません。')">サンプル１</button>
+        <button class="sub-btn" onclick="insertSample('評価基準がよく分からず、頑張っても報われる気がしません。')">サンプル２</button>
+        <button class="sub-btn" onclick="insertSample('異動したいけど、今の部署に言い出しにくいです。')">サンプル３</button>
+        <button class="sub-btn" onclick="clearChat()">会話をリセット</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const chatArea = document.getElementById("chatArea");
+    const userInput = document.getElementById("userInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const totalPointsEl = document.getElementById("totalPoints");
+    const scoreSub = document.getElementById("scoreSub");
+    const scoreBoard = document.getElementById("scoreBoard");
+
+    let totalPoints = 0;
+
+    const openings = [
+      "それは、かなり本質的なテーマですね。",
+      "その観点まで考えているのは鋭いです。",
+      "そのモヤモヤ、見過ごさない方がいいやつですね。",
+      "なかなか一筋縄ではいかない論点です。",
+      "静かに大事なテーマに触れていますね。",
+      "その違和感を言葉にできているのは大きいです。",
+      "その手の悩み、じわじわ効いてくるタイプですね。",
+      "人事っぽく言うと、見立てが難しいけど放置もしづらい案件です。",
+      "その話、ふわっと聞き流すには惜しいですね。",
+      "かなり“あるある”ですが、だからこそ厄介です。"
+    ];
+
+    const middles = [
+      "こういう話は、個人の問題に見えて、実は構造の問題であることもあります。",
+      "感情だけでなく、事実ベースでも整理してみると見え方が変わることがあります。",
+      "一見すると小さく見えても、長期的にはじわじわ効いてくるテーマです。",
+      "『自分が気にしすぎなのでは』と抱え込むより、論点を分けて考えるのが大切です。",
+      "この手の話は、正しさより先に、関係者の納得感が問われがちです。",
+      "すぐ結論を出すより、まず状況を丁寧に見立てることに意味があります。",
+      "本人の気持ちと、周囲の受け取り方がズレやすい領域でもあります。",
+      "何が問題かより、どこから問題になっているかを見るのが大事かもしれません。",
+      "表面上は静かでも、内側ではかなり消耗しやすいテーマです。",
+      "解決というより、まず整理だけでも価値がある話だと思います。"
+    ];
+
+    const vagueAdvice = [
+      "まずは、無理に結論を急がず、少し俯瞰して捉えてみてもよさそうです。",
+      "誰に、どの順番で、どの粒度で伝えるかはかなり重要です。",
+      "『今すぐ動く話』と『まだ寝かせてもよい話』を分けるだけでも前進です。",
+      "タイミングと伝え方しだいで、印象はかなり変わります。",
+      "一度、温度感の低いところで整理してみるのがよいかもしれません。",
+      "周囲との関係性を崩さずに進める余地は、まだありそうです。",
+      "主語を大きくしすぎず、起きていることを細かく分けてみると少し楽になるかもしれません。",
+      "いきなり答えを出すより、違和感の正体に名前をつける方が先かもしれません。",
+      "状況を変える前に、見え方を少し整えるだけでも意味はありそうです。",
+      "感情と事実をいったん別テーブルに置くと、少し扱いやすくなりそうです。"
+    ];
+
+    const endings = [
+      "そこまで考えているのは偉い！やるやんポイント　ゲットだよ！",
+      "その視点を持てている時点で、かなりやるやんです。",
+      "雑に流さずに立ち止まれているのが、とても大事です。やるやんポイントです。",
+      "簡単ではないですが、その問題意識はかなり良いです。やるやんポイント追加です。",
+      "今すぐ全部まとまらなくても大丈夫です。今日のところは、やるやんポイント獲得です。",
+      "そこをちゃんと気にしているの、かなり偉いです。やるやんポイントをどうぞ。",
+      "少なくとも、見て見ぬふりをしていないのが良いです。やるやんポイント付与です。",
+      "その引っかかり方、かなり筋がいいです。やるやんポイント進呈です。",
+      "派手ではないけど大事な視点です。やるやんポイント、入ります。",
+      "その違和感に言葉を与えられている時点で、だいぶやるやんです。"
+    ];
+
+    const keywordReplyGroups = [
+      {
+        keywords: ["上司", "指示", "ふわっと", "丸投げ"],
+        replies: [
+`上司の指示がふわっとしている件、ありますよね。
+これは単なるコミュニケーションの話にも見えますが、役割分担のあいまいさが背景にある可能性もあります。
+大事なのは、あなた個人の理解力だけの問題として抱え込みすぎないことです。
+一方で、期待値のすり合わせ余地も残されています。
+そこまで考えているのは偉い！やるやんポイント　ゲットだよ！`,
+`指示が毎回ふわっとしていると、受け取る側ばかりが補完力を求められますよね。
+それは努力不足というより、設計不足っぽい匂いもあります。
+ただ、その曖昧さの中で何が毎回抜けるのかを見ていくと、少し輪郭が出るかもしれません。
+そこに気づけている時点で、かなり解像度は高いです。
+やるやんポイント　どうぞ。`,
+`上司の言葉が抽象的すぎると、最終的に“察した人が背負う構図”になりがちです。
+これは地味ですが、けっこうしんどいやつです。
+誰が何を決めるのかがふわっとしている可能性もあるので、話の質だけではなく役割の線引きも論点かもしれません。
+その違和感を拾えているのは、かなり大事です。
+やるやんポイント　ゲットだよ！`
+        ]
+      },
+      {
+        keywords: ["評価", "査定", "報われ", "基準"],
+        replies: [
+`評価基準が見えにくいと、努力の向け先もぼやけますよね。
+これは気合いで乗り切るというより、評価される行動の解像度を上げる話かもしれません。
+ただ、組織によっては、その解像度自体がかなりあいまいなこともあります。
+その不透明さに気づけているのは、かなり大事な視点です。
+やるやんポイント　ゲットだよ！`,
+`評価の基準が分からない状態って、走っているのにゴールが見えない感じがありますよね。
+本人の努力不足の話にされがちですが、そもそも物差しが曖昧な場合もあります。
+見えない基準に合わせようとして疲れる前に、“何が見えていないのか”を整理する視点はかなり良いです。
+そこまで考えているのは偉いです。
+やるやんポイント　進呈します。`,
+`報われなさを感じるときって、実力の問題というより、評価の翻訳がうまく行われていないこともあります。
+やっていることと見られていることがズレているのかもしれません。
+そのズレにモヤっとしている感覚は、かなり自然です。
+違和感に気づけている時点で、かなりやるやんです。
+やるやんポイント　追加です。`
+        ]
+      },
+      {
+        keywords: ["異動", "部署", "言い出し", "配置転換"],
+        replies: [
+`異動の話って、希望そのものより『どう言うか』が難しいですよね。
+前向きな意思でも、受け手によっては波風っぽく見えることがあります。
+なので、気持ちと事情とタイミングを分けて整理するのがよさそうです。
+その時点で全部がまとまらなくても、考え方としてはかなり良いです。
+そこまで考えているのは偉い！やるやんポイント　ゲットだよ！`,
+`異動したい気持ちがあっても、言い出した瞬間に空気が変わりそうで身構えますよね。
+希望の話と、今の職場への否定が混線しやすいテーマでもあります。
+だからこそ、何を離れたいのかではなく、何を広げたいのかで整理してみる視点はありそうです。
+そこに慎重さを持てているのは、かなり偉いです。
+やるやんポイント　どうぞ。`,
+`異動の相談は、内容よりも温度管理が難しいタイプの話です。
+気持ちはシンプルでも、受け手の解釈が複雑になりがちなんですよね。
+希望・事情・タイミングを切り分けて考えるだけでも、少し扱いやすくなるかもしれません。
+その感覚を持てている時点で、かなりやるやんです。
+やるやんポイント　獲得です。`
+        ]
+      },
+      {
+        keywords: ["退職", "辞めたい", "しんどい", "疲れた"],
+        replies: [
+`それは、かなり消耗しているサインかもしれません。
+『辞めたい』には、今すぐ辞めたい場合と、今の状態から離れたい場合があります。
+両者は似ているようで、少し違います。
+まずは、そのどちらが近いのかを自分の中で分けてみるのも一つです。
+ここまで言葉にできている時点で、やるやんポイントです。`,
+`疲れた、しんどい、辞めたいは、同じ箱に入っているようで中身が少し違うことがありますよね。
+本当に終わらせたいのか、いったん距離を取りたいのかで見え方も変わります。
+無理に答えを出す前に、その気持ちの種類を見分けようとしているだけでも十分意味があります。
+そこを雑に扱っていないのが良いです。
+やるやんポイント　追加です。`,
+`“辞めたい”の一言の中に、怒りと疲れと諦めが混ざっていること、ありますよね。
+なので、結論を急ぐより、どの感情が一番強いのかを見るのも大事かもしれません。
+そのしんどさをちゃんと言葉にしようとしている時点で、すでに前進しています。
+かなり偉いです。
+やるやんポイント　ゲットだよ！`
+        ]
+      },
+      {
+        keywords: ["人間関係", "気まずい", "苦手", "摩擦"],
+        replies: [
+`人間関係の悩みは、業務課題の顔をしてやってくることがあります。
+どちらが悪いかで整理しようとすると、かえってしんどくなることもあります。
+相手を変える話なのか、自分の守り方の話なのか、線を引く視点が大事です。
+結論はまだ出なくても、その視点を持てているのはかなり偉いです。
+やるやんポイント　差し上げます。`,
+`気まずさって、明確な事件がないのに空気だけ重くなるのでやっかいですよね。
+しかも、本人だけが気にしているのか、本当にズレがあるのかも見えにくいです。
+だからこそ、事実と想像を分けて見ようとする姿勢はかなり大事です。
+その感覚を持てている時点で、やるやんです。
+やるやんポイント　入ります。`,
+`苦手な相手との摩擦って、仕事の話に見せかけて体力を削ってきますよね。
+真正面から解決しようとすると、逆にこじれることもあります。
+距離の取り方を考える話なのか、認識合わせの話なのかを見極めようとしているなら、かなり良い視点です。
+やるやんポイント　進呈です。`
+        ]
+      },
+      {
+        keywords: ["会議", "誰も動きません", "動かない", "議事録"],
+        replies: [
+`会議で一度きれいに着地したのに、なぜか何も進まないこと、ありますよね。
+これは合意形成ができたように見えて、実は責任の所在がやや霧の中なのかもしれません。
+場の空気を読む力と、物事を前に進める設計力は、似ているようで別物です。
+そこに気づけている時点で、かなり解像度が高いです。
+やるやんポイント　ゲットだよ！`,
+`“いい会議だった感”だけ残って、翌日になると何も始まらない現象、ありますよね。
+それは前向きな空気と実行責任が別物だからかもしれません。
+誰がいつまでに何を持つのかが薄いと、全員がうっすら納得したまま静止します。
+そこにモヤっとできている時点で、かなり大事なセンスがあります。
+やるやんポイント　どうぞ。`,
+`会議がうまく終わったように見えて動かないときは、合意ではなく雰囲気で閉じていることがあります。
+その場の満足度は高いのに、実務の接続が弱いパターンですね。
+その違いを感じ取れているのは、かなり観察力があります。
+やるやんポイント　追加です。`
+        ]
+      },
+      {
+        keywords: ["残業", "忙しい", "業務量", "回らない", "工数"],
+        replies: [
+`忙しさが続くと、目の前を回すことが最優先になって、何が重いのか見えなくなりますよね。
+でも“全部が忙しい”の中にも、質の違う負荷が混ざっていることがあります。
+工数の問題なのか、進め方の問題なのか、期待値の問題なのかを分けて見ようとする視点はかなり大事です。
+そこまで考えているのは偉いです。
+やるやんポイント　ゲットだよ！`,
+`業務量が多いときって、単に件数の話だけではなく、切り替え回数や詰めの多さが効いていることもあります。
+数字で見えにくい疲れ方をしている可能性もありますね。
+“回らない”をちゃんと違和感として捉えられているのは、かなり良いです。
+やるやんポイント　進呈します。`,
+`残業が増えてくると、自分の頑張りが足りないせいにしがちですが、設計の問題も普通にあります。
+全部を根性の話にしない感覚はかなり大事です。
+しんどさを雑に処理せず、原因を見ようとしている時点で、だいぶやるやんです。
+やるやんポイント　どうぞ。`
+        ]
+      },
+      {
+        keywords: ["報連相", "連携", "共有", "伝わらない"],
+        replies: [
+`連携がうまくいかないときって、“伝えたかどうか”より“同じ絵を見ていたかどうか”の差が出ますよね。
+共有したつもりでも、解釈がバラけていることはよくあります。
+そのズレを違和感として拾えているのはかなり良いです。
+やるやんポイント　ゲットだよ！`,
+`報連相が足りないのか、報連相の形だけ残っているのかで、話は少し変わってきますよね。
+情報の量より、受け手が動ける形になっているかが意外と大きいです。
+そこにモヤっとできているのは、かなり筋がいいです。
+やるやんポイント　追加です。`,
+`“ちゃんと伝えたはずなのに伝わっていない”は、かなりあるあるです。
+内容ではなく、タイミングや文脈の共有が足りていないのかもしれません。
+その辺を丁寧に見ようとしている時点で、かなりやるやんです。
+やるやんポイント　どうぞ。`
+        ]
+      },
+      {
+        keywords: ["モチベ", "やる気", "気持ちが乗らない", "やる気が出ない"],
+        replies: [
+`やる気が出ないときって、怠けではなく、納得感の不足だったりしますよね。
+気持ちの問題に見えて、実は意味づけの問題かもしれません。
+そのズレに気づけているだけでも、かなり大事です。
+やるやんポイント　ゲットだよ！`,
+`モチベーションって、上げようとすると逃げるのに、納得すると少し戻ることがありますよね。
+今の状態を根性不足で片づけず、何に引っかかっているか見ようとしているならかなり良いです。
+その感覚、かなりやるやんです。
+やるやんポイント　進呈します。`,
+`気持ちが乗らないときに、自分を責めるルートに入るとしんどいですよね。
+でも実際は、疲労・役割・意味づけが混ざっていることも多いです。
+そこを雑にせず見ようとしているのは偉いです。
+やるやんポイント　追加です。`
+        ]
+      }
+    ];
+
+    const thinkingMessages = [
+      "考え中…",
+      "人事部の気持ちで考え中…",
+      "日本テレビの歴史をひも解いて考え中…",
+      "組織と個人のはざまで考え中…",
+      "評価と納得感のバランスを考え中…",
+      "人事っぽい角度から深くうなずきつつ考え中…",
+      "関係者全員の顔を思い浮かべながら考え中…",
+      "それっぽい解像度を上げながら考え中…",
+      "会議室の空気を再現しつつ考え中…",
+      "なんとなく深いことを言う準備中…"
+    ];
+
+    const scoreComments = [
+      "本日のがんばりを静かに評価中",
+      "人事的観点から加点中",
+      "やるやんの波を観測中",
+      "相談の深みをポイント換算中",
+      "地味に良い視点を集計中",
+      "納得感をそれっぽく数値化中"
+    ];
+
+    function insertSample(text) {
+      userInput.value = text;
+      userInput.focus();
+    }
+
+    function pick(arr) {
+      return arr[Math.floor(Math.random() * arr.length)];
+    }
+
+    function createMessage(role, text, showBadge = false, pointGain = 0) {
+      const row = document.createElement("div");
+      row.className = `message-row ${role}`;
+
+      const wrap = document.createElement("div");
+      wrap.className = "message-wrap";
+
+      const bubble = document.createElement("div");
+      bubble.className = "bubble";
+      bubble.innerHTML = text.replace(/\n/g, "<br>");
+      wrap.appendChild(bubble);
+
+      if (showBadge) {
+        const badge = document.createElement("div");
+        badge.className = "badge";
+        badge.textContent = `やるやんポイント　＋${pointGain}`;
+        wrap.appendChild(badge);
+      }
+
+      const meta = document.createElement("div");
+      meta.className = "meta";
+      meta.textContent = role === "user" ? "あなた" : "AIチャットボット";
+      wrap.appendChild(meta);
+
+      row.appendChild(wrap);
+      chatArea.appendChild(row);
+      chatArea.scrollTop = chatArea.scrollHeight;
+    }
+
+    function createThinkingMessage(text) {
+      const row = document.createElement("div");
+      row.className = "message-row system";
+
+      const thinking = document.createElement("div");
+      thinking.className = "thinking-text";
+      thinking.innerHTML = `
+        <span>${text}</span>
+        <span class="thinking-dots">
+          <span></span><span></span><span></span>
+        </span>
+      `;
+
+      row.appendChild(thinking);
+      chatArea.appendChild(row);
+      chatArea.scrollTop = chatArea.scrollHeight;
+
+      return row;
+    }
+
+    function generateGenericReply() {
+      return [
+        pick(openings),
+        pick(middles),
+        pick(vagueAdvice),
+        pick(endings)
+      ].join("\n");
+    }
+
+    function generateReply(input) {
+      const lower = input.toLowerCase();
+
+      const matchedGroups = keywordReplyGroups.filter(group =>
+        group.keywords.some(keyword => lower.includes(keyword.toLowerCase()))
+      );
+
+      if (matchedGroups.length > 0) {
+        const selectedGroup = pick(matchedGroups);
+        return pick(selectedGroup.replies);
+      }
+
+      if (lower.includes("どう思う") || lower.includes("どうしたら") || lower.includes("どうすれば")) {
+        return [
+          pick(openings),
+          "“どう動くか”の前に、“何にいちばん引っかかっているか”を見た方がよさそうな気もします。",
+          pick(vagueAdvice),
+          pick(endings)
+        ].join("\n");
+      }
+
+      if (lower.includes("つらい") || lower.includes("きつい") || lower.includes("しんど")) {
+        return [
+          "それは、静かに負荷が積み上がっている感じがしますね。",
+          "こういう時は、気持ちの話に見えて、役割や関係性の話が混ざっていることもあります。",
+          "まずは何が一番しんどいのかを分けて見るだけでも少し違うかもしれません。",
+          pick(endings)
+        ].join("\n");
+      }
+
+      return generateGenericReply();
+    }
+
+    async function runThinkingSequence() {
+      const count = 2 + Math.floor(Math.random() * 2);
+      const used = [];
+      let currentRow = null;
+
+      for (let i = 0; i < count; i++) {
+        let msg;
+        do {
+          msg = pick(thinkingMessages);
+        } while (used.includes(msg) && used.length < thinkingMessages.length);
+
+        used.push(msg);
+
+        if (currentRow) {
+          currentRow.remove();
+        }
+
+        currentRow = createThinkingMessage(msg);
+
+        const wait = 1100 + Math.random() * 1100;
+        await new Promise(resolve => setTimeout(resolve, wait));
+      }
+
+      if (currentRow) {
+        currentRow.remove();
+      }
+    }
+
+    function showPointPopup(pointGain) {
+      const pop = document.createElement("div");
+      pop.className = "point-pop";
+      pop.textContent = `+${pointGain} pt`;
+      scoreBoard.appendChild(pop);
+
+      requestAnimationFrame(() => {
+        pop.classList.add("show");
+      });
+
+      setTimeout(() => {
+        pop.remove();
+      }, 1450);
+    }
+
+    function updatePoints(pointGain) {
+      totalPoints += pointGain;
+      totalPointsEl.textContent = totalPoints;
+      scoreSub.textContent = `${pick(scoreComments)}　（今回＋${pointGain}）`;
+      showPointPopup(pointGain);
+    }
+
+    async function sendMessage() {
+      const text = userInput.value.trim();
+      if (!text) return;
+
+      createMessage("user", text);
+      userInput.value = "";
+      sendBtn.disabled = true;
+      userInput.disabled = true;
+
+      await runThinkingSequence();
+
+      const reply = generateReply(text);
+      const pointGain = 1 + Math.floor(Math.random() * 3);
+      updatePoints(pointGain);
+      createMessage("bot", reply, true, pointGain);
+
+      sendBtn.disabled = false;
+      userInput.disabled = false;
+      userInput.focus();
+    }
+
+    function clearChat() {
+      chatArea.innerHTML = "";
+      totalPoints = 0;
+      totalPointsEl.textContent = "0";
+      scoreSub.textContent = "本日のがんばりを静かに評価中";
+      userInput.value = "";
+      sendBtn.disabled = false;
+      userInput.disabled = false;
+      document.querySelectorAll(".point-pop").forEach(el => el.remove());
+      userInput.focus();
+    }
+
+    sendBtn.addEventListener("click", sendMessage);
+
+    userInput.addEventListener("keydown", function (e) {
+      if (e.key === "Enter" && !e.shiftKey) {
+        e.preventDefault();
+        sendMessage();
+      }
+    });
+
+    userInput.addEventListener("paste", function () {
+      setTimeout(() => {
+        userInput.scrollLeft = userInput.scrollWidth;
+      }, 0);
+    });
+  </script>
+</body>
+</html>
