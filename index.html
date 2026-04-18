@@ -730,7 +730,7 @@
         ]
       },
       {
-        keywords: ["残業", "忙しい", "業務量", "回らない", "工数"],
+        keywords: ["残業", "終わらない", "忙しい", "業務量", "回らない", "工数"],
         replies: [
 `忙しさが続くと、目の前を回すことが最優先になって、何が重いのか見えなくなりますよね。
 でも“全部が忙しい”の中にも、質の違う負荷が混ざっていることがあります。
@@ -792,7 +792,7 @@
       "人事っぽい角度から深くうなずきつつ考え中…",
       "関係者全員の顔を思い浮かべながら考え中…",
       "それっぽい解像度を上げながら考え中…",
-      "会議室の空気を再現しつつ考え中…",
+      "木をこりながら考え中…",
       "なんとなく深いことを言う準備中…"
     ];
 
@@ -873,7 +873,7 @@
       const thinking = document.createElement("div");
       thinking.className = "thinking-text";
       thinking.innerHTML = `
-        <span>${text}</span>
+        <span id="thinkingLabel">${text}</span>
         <span class="thinking-dots">
           <span></span><span></span><span></span>
         </span>
@@ -883,7 +883,10 @@
       chatArea.appendChild(row);
       scrollChatToBottom();
 
-      return row;
+      return {
+        row,
+        label: thinking.querySelector("#thinkingLabel")
+      };
     }
 
     function generateGenericReply() {
@@ -929,31 +932,24 @@
     }
 
     async function runThinkingSequence() {
-      const count = 2 + Math.floor(Math.random() * 2);
-      const used = [];
-      let currentRow = null;
+      const thinking = createThinkingMessage(pick(thinkingMessages));
+      const cycleMs = 950;
+      const totalExtraMs = 1000;
+      const totalDuration = 2200 + totalExtraMs;
+      const start = Date.now();
 
-      for (let i = 0; i < count; i++) {
-        let msg;
-        do {
-          msg = pick(thinkingMessages);
-        } while (used.includes(msg) && used.length < thinkingMessages.length);
+      while (Date.now() - start < totalDuration) {
+        await new Promise(resolve => setTimeout(resolve, cycleMs));
 
-        used.push(msg);
-
-        if (currentRow) {
-          currentRow.remove();
+        if (!document.body.contains(thinking.row)) {
+          break;
         }
 
-        currentRow = createThinkingMessage(msg);
-
-        const wait = 900 + Math.random() * 900;
-        await new Promise(resolve => setTimeout(resolve, wait));
+        thinking.label.textContent = pick(thinkingMessages);
+        scrollChatToBottom();
       }
 
-      if (currentRow) {
-        currentRow.remove();
-      }
+      return thinking.row;
     }
 
     function showPointPopup(pointGain) {
@@ -988,10 +984,15 @@
       sendBtn.disabled = true;
       userInput.disabled = true;
 
-      await runThinkingSequence();
+      const thinkingRow = await runThinkingSequence();
 
       const reply = generateReply(text);
       const pointGain = 1 + Math.floor(Math.random() * 3);
+
+      if (thinkingRow && document.body.contains(thinkingRow)) {
+        thinkingRow.remove();
+      }
+
       updatePoints(pointGain);
       createMessage("bot", reply, true, pointGain);
 
